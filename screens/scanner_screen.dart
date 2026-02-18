@@ -15,50 +15,65 @@ class ScannerScreen extends StatefulWidget {
 
 class _ScannerScreenState extends State<ScannerScreen> {
   bool _isProcessing = false;
+  static const String _expectedQRCode = 'SALA_ISTEC_2026';
 
-  /// NOTA TÉCNICA (Relatório):
-  /// O mobile_scanner fornece um callback 'onDetect' que dispara quando um QR é focado.
-  /// Aqui, pausamos o processamento para evitar leituras duplicadas enquanto
-  /// validamos o GPS do aluno.
   void _onDetect(BarcodeCapture capture) async {
     if (_isProcessing) return;
+    
+    final List<Barcode> barcodes = capture.barcodes;
+    if (barcodes.isEmpty) return;
+
+    final String? code = barcodes.first.rawValue;
     setState(() => _isProcessing = true);
 
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isNotEmpty) {
-      _showValidationDialog();
+    // 1. Validação imediata do QR Code
+    if (code != _expectedQRCode) {
+      _showErrorDialog('QR Code Inválido', 'O código lido não pertence a uma sala de aula válida do ISTEC.');
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    _showValidationDialog();
+    
+    try {
+      // 2. Verificação de GPS e "Conexão" (Simulada para o core)
+      // No Flutter real, usaríamos o package connectivity_plus aqui.
+      final position = await GeoHelper.determinePosition();
       
-      try {
-        // Validação de GPS
-        final position = await GeoHelper.determinePosition();
-        final distance = GeoHelper.calculateDistance(
-          position.latitude, position.longitude,
-          GeoHelper.targetLat, GeoHelper.targetLng
+      final distance = GeoHelper.calculateDistance(
+        position.latitude, position.longitude,
+        GeoHelper.targetLat, GeoHelper.targetLng
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Fecha dialog de espera
+
+      if (distance <= GeoHelper.radiusMeters) {
+        final newRecord = CheckInRecord(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          timestamp: DateTime.now(),
+          location: 'Campus ISTEC - Sala Validada',
+          isSuccess: true,
         );
-
-        Navigator.pop(context); // Fecha dialog de espera
-
-        if (distance <= GeoHelper.radiusMeters) {
-          // SUCESSO
-          final newRecord = CheckInRecord(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            timestamp: DateTime.now(),
-            location: 'Campus ISTEC',
-            isSuccess: true,
-          );
-          context.read<AppState>().addRecord(newRecord);
-          _showStatusSnackbar('Check-in realizado com sucesso!', Colors.green);
-          Navigator.pop(context);
-        } else {
-          // LOCALIZAÇÃO INCORRETA
-          _showErrorDialog('Localização Incorreta', 'Você deve estar no ISTEC para validar a presença.');
-        }
-      } catch (e) {
+        context.read<AppState>().addRecord(newRecord);
+        _showStatusSnackbar('Check-in realizado com sucesso!', Colors.green);
         Navigator.pop(context);
-        _showStatusSnackbar('Erro: $e', Colors.red);
-      } finally {
-        setState(() => _isProcessing = false);
+      } else {
+        _showErrorDialog('Localização Incorreta', 'O QR Code é válido, mas você está fora do raio de 100m do campus.');
       }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      
+      // Tratamento de Erro de "Sem Conexão" ou Falha de Serviço
+      String errorMsg = e.toString();
+      if (errorMsg.contains('disabled') || errorMsg.contains('denied')) {
+        _showErrorDialog('Sem Conexão/Acesso', 'Não foi possível aceder aos serviços de localização. Verifique o seu GPS e internet.');
+      } else {
+        _showStatusSnackbar('Erro: $e', Colors.red);
+      }
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
     }
   }
 
@@ -72,7 +87,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Validando GPS e QR Code...'),
+            Text('Validando Presença...'),
           ],
         ),
       ),
@@ -83,10 +98,13 @@ class _ScannerScreenState extends State<ScannerScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: Text(title, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('TENTAR NOVAMENTE')
+          )
         ],
       ),
     );
@@ -94,40 +112,38 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   void _showStatusSnackbar(String message, Color color) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
+      SnackBar(content: Text(message), backgroundColor: color, behavior: SnackBarBehavior.floating),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Scan QR Code')),
+      appBar: AppBar(title: const Text('Check-in ISTEC 2026')),
       body: Stack(
         children: [
           MobileScanner(
             controller: MobileScannerController(facingMode: CameraFacing.back),
             onDetect: _onDetect,
           ),
+          // Frame de auxílio visual
           Center(
             child: Container(
-              width: 250,
-              height: 250,
+              width: 260,
+              height: 260,
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue, width: 4),
-                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+                borderRadius: BorderRadius.circular(30),
+              ),
+              child: Center(
+                child: Container(
+                  width: 200,
+                  height: 2,
+                  color: Colors.red.withOpacity(0.5), // Linha de scan
+                ),
               ),
             ),
           ),
-          const Positioned(
-            bottom: 40,
-            left: 0,
-            right: 0,
-            child: Text(
-              'Aponte para o QR Code da sala',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          )
         ],
       ),
     );

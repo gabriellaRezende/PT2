@@ -12,11 +12,11 @@ class AppState with ChangeNotifier {
   List<CheckInRecord> get history => _history;
 
   AppState() {
+    // Garantir que o carregamento inicia imediatamente
     _loadHistory();
   }
 
   void login(String id, String pass) {
-    // Simulação de auth
     if (id.isNotEmpty && pass.isNotEmpty) {
       _isLoggedIn = true;
       notifyListeners();
@@ -35,18 +35,28 @@ class AppState with ChangeNotifier {
   }
 
   Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String? historyData = prefs.getString('history');
-    if (historyData != null) {
-      final List decoded = jsonDecode(historyData);
-      _history = decoded.map((item) => CheckInRecord.fromJson(item)).toList();
-      notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? historyData = prefs.getString('history');
+      
+      if (historyData != null && historyData.isNotEmpty) {
+        final List decoded = jsonDecode(historyData);
+        _history = decoded.map((item) => CheckInRecord.fromJson(item)).toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Erro ao carregar histórico persistido: $e');
+      _history = []; // Reset em caso de dados corrompidos
     }
   }
 
   Future<void> _saveHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final String encoded = jsonEncode(_history.map((e) => e.toJson()).toList());
-    await prefs.setString('history', encoded);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String encoded = jsonEncode(_history.map((e) => e.toJson()).toList());
+      await prefs.setString('history', encoded);
+    } catch (e) {
+      debugPrint('Erro ao salvar histórico: $e');
+    }
   }
 }
