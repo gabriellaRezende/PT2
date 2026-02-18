@@ -1,0 +1,8 @@
+{
+  "name": "Copy of ISTEC Digital Check-in",
+  "description": "Uma aplicação progressiva de check-in digital para alunos do ISTEC, integrando validação de QR Code e geolocalização por proximidade.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
