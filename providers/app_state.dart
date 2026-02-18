@@ -12,7 +12,6 @@ class AppState with ChangeNotifier {
   List<CheckInRecord> get history => _history;
 
   AppState() {
-    // Garantir que o carregamento inicia imediatamente
     _loadHistory();
   }
 
@@ -38,15 +37,13 @@ class AppState with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? historyData = prefs.getString('history');
-      
       if (historyData != null && historyData.isNotEmpty) {
         final List decoded = jsonDecode(historyData);
         _history = decoded.map((item) => CheckInRecord.fromJson(item)).toList();
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Erro ao carregar histórico persistido: $e');
-      _history = []; // Reset em caso de dados corrompidos
+      debugPrint('Erro ao carregar histórico: $e');
     }
   }
 

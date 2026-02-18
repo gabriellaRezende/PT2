@@ -7,6 +7,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/history_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
     MultiProvider(
       providers: [
@@ -27,12 +28,11 @@ class IstecApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A237E), // Azul ISTEC
+          seedColor: const Color(0xFF1A237E),
           primary: const Color(0xFF1A237E),
           secondary: Colors.blueAccent,
         ),
         useMaterial3: true,
-        fontFamily: 'Inter',
       ),
       home: const AuthWrapper(),
     );
