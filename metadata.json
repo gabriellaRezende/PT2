@@ -1,6 +1,6 @@
 {
-  "name": "Copy of ISTEC Digital Check-in",
-  "description": "Uma aplicação progressiva de check-in digital para alunos do ISTEC, integrando validação de QR Code e geolocalização por proximidade.",
+  "name": "ISTEC Digital Check-in (Flutter)",
+  "description": "Aplicação nativa para check-in digital de alunos do ISTEC com validação QR e GPS.",
   "requestFramePermissions": [
     "camera",
     "geolocation"
